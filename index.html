@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>코스피200 ELS 모니터</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@400;600&display=swap">
+<style>
+  /* 레이아웃: 요약 → 배리어 → 지수 비교 → 지수별 → 상위 종목 → 대외 변수·수급, 최대 폭 1200px 한 열 */
+  :root {
+    --bg: #f5f6f8; --panel: #ffffff; --fg: #171a20; --muted: #5d6573; --line: #e1e4ea;
+    --up: #cf222e; --down: #1a5fd0; --ref: #9aa3b1; --grid: #eceef2; --crit: #cf222e;
+    --s1: #0e7c72; --s2: #6d3fd6; --s3: #c2510e;
+    --pop: #ffffff; --shadow: 0 6px 20px rgba(20, 24, 32, .12);
+    --sans: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    --serif: "Noto Serif KR", "AppleMyungjo", "Batang", Georgia, serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151a; --panel: #1a1e25; --fg: #e8eaee; --muted: #9aa2af; --line: #2b313b;
+      --up: #ff6b6b; --down: #5b9bff; --ref: #6b7482; --grid: #232830; --crit: #ff6b6b;
+      --s1: #3cc4b4; --s2: #a88bff; --s3: #ff9a52;
+      --pop: #22272f; --shadow: 0 6px 20px rgba(0, 0, 0, .45);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12151a; --panel: #1a1e25; --fg: #e8eaee; --muted: #9aa2af; --line: #2b313b;
+    --up: #ff6b6b; --down: #5b9bff; --ref: #6b7482; --grid: #232830; --crit: #ff6b6b;
+    --s1: #3cc4b4; --s2: #a88bff; --s3: #ff9a52;
+    --pop: #22272f; --shadow: 0 6px 20px rgba(0, 0, 0, .45);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 14px; line-height: 1.55;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 40px; }
+  .els { max-width: 1200px; margin-inline: auto; display: grid; gap: 28px; }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+  .muted { color: var(--muted); }
+  .head { display: grid; gap: 6px; }
+  .head h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(1.6rem, 3vw, 2.1rem); margin: 0; text-wrap: balance; }
+  .take { font-size: 1rem; margin: 0; max-width: 72ch; }
+  .take b { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .asof { font-size: .8rem; color: var(--muted); margin: 0; }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; min-width: 0; display: grid; gap: 10px; align-content: start; }
+  .card h2, .card h3, .section > h2 { font-size: 1.02rem; font-weight: 500; margin: 0; }
+  .note { font-size: .8rem; color: var(--muted); margin: 0; }
+  .section { display: grid; gap: 14px; }
+  .kpi .label { font-size: .8rem; color: var(--muted); letter-spacing: .03em; }
+  .kpi .big { font-family: var(--serif); font-weight: 400; font-size: 2rem; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .kpi .row { display: flex; flex-wrap: wrap; gap: 4px 14px; font-variant-numeric: tabular-nums; }
+  .pill { display: inline-flex; align-items: baseline; gap: .35em; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); font-size: .8rem; }
+  .pill b { font-weight: 700; }
+  .chart { position: relative; min-height: 300px; }
+  .mini { position: relative; min-height: 170px; }
+  svg text { fill: var(--muted); font-size: 11px; font-family: var(--sans); }
+  .tip { position: absolute; pointer-events: none; background: var(--pop); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); padding: 6px 10px; font-size: .78rem; font-variant-numeric: tabular-nums; white-space: nowrap; z-index: 2; }
+  .tip .d { color: var(--muted); margin-bottom: 2px; }
+  .tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .8rem; }
+  .legend span::before { content: ""; display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; background: var(--c); }
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th { text-align: right; font-weight: 500; font-size: .78rem; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th.l, td.l { text-align: left; }
+  td.name { font-weight: 500; }
+  td.spark { width: 110px; padding-block: 2px; }
+  tr.grp td { color: var(--muted); font-size: .78rem; padding-top: 12px; border-bottom: none; text-align: left; }
+  .breadth { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); }
+  .breadth i { display: block; height: 100%; }
+  .flow { display: grid; gap: 12px; }
+  .skel { color: transparent; background: var(--grid); border-radius: 4px; }
+  .fail { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: inherit; color: var(--muted); font-size: .8rem; }
+  .fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--crit); }
+  footer { font-size: .78rem; color: var(--muted); display: grid; gap: 4px; }
+  @media (max-width: 640px) { .hide-sm { display: none; } .kpi .big { font-size: 1.7rem; } }
+</style>
+</head>
+<body>
+<div class="els">
+  <header class="head" id="overview">
+    <h1>코스피200 ELS 모니터</h1>
+    <p class="take" id="takeaway"><span class="skel">코스피200 기준일 대비 현황을 불러오는 중입니다.</span></p>
+    <p class="asof">현재가 기준 시각 <span id="traded-at">—</span><span id="mkt-status"></span> · 평일 장중 약 1시간마다 자동 갱신 · 등락 색상은 국내 관례(상승 빨강, 하락 파랑)</p>
+  </header>
+
+  <section class="grid" id="index-cards">
+    <div class="card kpi" data-index="KOSPI200"></div>
+    <div class="card kpi" data-index="KOSPI"></div>
+    <div class="card kpi" data-index="KOSDAQ"></div>
+  </section>
+
+  <section class="card" id="barriers">
+    <h2>ELS 배리어 대비 코스피200</h2>
+    <p class="note">기준일 종가=100. 조기상환 배리어 90-85-80-80-75-70%, 낙인 35%. 평가일은 기준일부터 6개월 주기로 가정한 예상일입니다.</p>
+    <div class="chart" id="barrier-chart" style="min-height: 320px"></div>
+    <div class="tablewrap">
+      <table id="barrier-table">
+        <thead><tr><th class="l">구분</th><th class="l">예상 평가일</th><th>배리어</th><th>배리어 지수</th><th>현재가 대비</th><th class="l">현재 상태</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" id="rebased">
+    <h2>기준일 대비 지수 흐름</h2>
+    <p class="note">ELS 기준일 종가를 100으로 맞춘 값. 100 아래는 기준가보다 낮다는 뜻입니다.</p>
+    <div class="legend" id="rebased-legend"></div>
+    <div class="chart" id="rebased-chart"></div>
+  </section>
+
+  <section class="section" id="index-levels">
+    <h2>지수별 일봉 종가 (7월 이후)</h2>
+    <div class="grid">
+      <div class="card"><h3>코스피200</h3><p class="note">점선: 기준일 종가</p><div class="mini" data-index="KOSPI200"></div></div>
+      <div class="card"><h3>코스피</h3><p class="note">점선: 기준일 종가</p><div class="mini" data-index="KOSPI"></div></div>
+      <div class="card"><h3>코스닥</h3><p class="note">점선: 기준일 종가</p><div class="mini" data-index="KOSDAQ"></div></div>
+    </div>
+  </section>
+
+  <section class="card" id="top10">
+    <h2>코스피200 시가총액 상위 10종목</h2>
+    <p class="note">코스피 보통주 시가총액 순(우선주 제외). 상위 종목의 움직임이 코스피200 지수를 좌우합니다. 추이선은 기준일 이후 종가.</p>
+    <div class="tablewrap">
+      <table id="top10-table">
+        <thead><tr><th>순위</th><th class="l">종목</th><th>현재가(원)</th><th>전일 대비</th><th>기준일 대비</th><th class="hide-sm">시가총액(조원)</th><th class="hide-sm">거래대금(억원)</th><th class="hide-sm">기준일 이후</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="grid" id="drivers-flows">
+    <div class="card" id="drivers">
+      <h2>지수에 영향을 주는 대외 변수</h2>
+      <p class="note">반도체 업황(필라델피아 반도체), 미국 증시, 환율·금리, 유가. 해외 지표는 직전 거래일 종가 기준.</p>
+      <div class="tablewrap">
+        <table id="drivers-table">
+          <thead><tr><th class="l">지표</th><th>현재</th><th>전일 대비</th><th>기준일 대비</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" id="flows">
+      <h2>오늘의 수급과 시장 분위기</h2>
+      <p class="note">투자자별 순매수(억원). 외국인 매매는 대형주 중심인 코스피200에 영향이 큽니다.</p>
+      <div class="tablewrap">
+        <table id="flows-table">
+          <thead><tr><th class="l">시장</th><th>개인</th><th>외국인</th><th>기관</th><th>프로그램</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="flow" id="breadth"></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>출처: 네이버 증권(국내 지수·종목·수급), Yahoo Finance(해외 지표). 데이터 수집 시각 <span id="as-of">—</span>.</span>
+    <span>투자 판단의 근거가 아닌 내부 모니터링용 자료입니다. ELS 평가일은 가정치이며 상품설명서가 우선합니다.</span>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+  // ELS 조건 (상품 조건이 바뀌면 여기만 수정)
+  const ELS = {
+    plan: [
+      ['1', '1차 조기상환', '2027-04-07', 90], ['2', '2차 조기상환', '2027-10-07', 85],
+      ['3', '3차 조기상환', '2028-04-07', 80], ['4', '4차 조기상환', '2028-10-07', 80],
+      ['5', '5차 조기상환', '2029-04-07', 75], ['6', '만기', '2029-10-07', 70],
+      ['KI', '낙인(장중 관찰)', '만기까지 상시', 35],
+    ],
+  };
+  const SETS = ['index_summary', 'index_daily', 'top10', 'top10_daily', 'drivers', 'flows'];
+  const COLORS = { KOSPI200: 'var(--s1)', KOSPI: 'var(--s2)', KOSDAQ: 'var(--s3)' };
+  const NAMES = { KOSPI200: '코스피200', KOSPI: '코스피', KOSDAQ: '코스닥' };
+
+  const fmtIdx = d3.format(',.2f');
+  const fmtWon = d3.format(',');
+  const fmt1 = d3.format(',.1f');
+  const signed = (v, digits = 2) => (v == null ? '—' : (v > 0 ? '+' : '') + v.toFixed(digits) + '%');
+  const tone = (v) => (v > 0 ? 'up' : v < 0 ? 'down' : '');
+  const parseDay = (s) => new Date(s + 'T00:00:00Z');
+  const md = d3.utcFormat('%-m/%-d');
+  const ymd = d3.utcFormat('%Y년 %-m월 %-d일');
+  const r2 = (v) => Math.round(v * 100) / 100;
+
+  let D = null;
+
+  async function load() {
+    const t = Date.now();
+    const res = await Promise.all(SETS.map((k) => fetch(`data/${k}.json?t=${t}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)));
+    const d = Object.fromEntries(SETS.map((k, i) => [k, res[i]]));
+    // 파생 값: 기준일=100 환산, 배리어 레벨
+    if (d.index_daily && d.index_summary) {
+      const base = Object.fromEntries(d.index_summary.map((s) => [s.index, s.baseClose]));
+      d.rebased = d.index_daily.map((r) => ({ index: r.index, date: r.date, v: r2((r.close / base[r.index]) * 100) }));
+      const k = d.index_summary.find((s) => s.index === 'KOSPI200');
+      d.level = { levelPct: r2((k.price / k.baseClose) * 100), toFirstPct: r2(((k.baseClose * 0.9) / k.price - 1) * 100), toKnockInPct: r2((1 - (k.baseClose * 0.35) / k.price) * 100) };
+      d.barriers = ELS.plan.map(([round, label, evalDate, pct]) => {
+        const level = Math.round(k.baseClose * pct) / 100;
+        const status = round === 'KI' ? (k.price > level ? '미발생' : '발생') : (k.price >= level ? '현재 충족' : '미충족');
+        return { round, label, evalDate, pct, level, gapPct: r2((level / k.price - 1) * 100), status };
+      });
+    }
+    D = d;
+    render();
+  }
+
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function fail(node) {
+    node.replaceChildren(el('div', 'fail', '데이터를 불러오지 못했습니다'));
+  }
+
+  function header() {
+    const s = D.index_summary;
+    const take = document.getElementById('takeaway');
+    if (!s) { take.replaceChildren(el('span', 'muted', '데이터를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.')); return; }
+    const k = s.find((x) => x.index === 'KOSPI200');
+    const L = D.level;
+    take.replaceChildren(
+      '코스피200은 ELS 기준일(', ymd(parseDay(k.baseDate)), ') 종가 ', el('b', null, fmtIdx(k.baseClose)), ' 대비 ',
+      el('b', tone(k.sinceBasePct), signed(k.sinceBasePct)), ', 기준가의 ', el('b', null, L.levelPct.toFixed(2) + '%'), ' 수준입니다. ',
+      '1차 조기상환 배리어(90%)까지는 ', el('b', null, signed(L.toFirstPct)), ' 상승이 필요하고, 낙인 배리어(35%)까지는 ',
+      el('b', null, L.toKnockInPct.toFixed(2) + '%'), ' 여유가 있습니다.'
+    );
+    document.getElementById('traded-at').textContent = k.tradedAt;
+    document.getElementById('mkt-status').textContent = k.marketStatus === 'OPEN' ? ' (장중)' : ' (장 마감)';
+    document.getElementById('as-of').textContent = k.asOf.replace('T', ' ').slice(0, 16) + ' (KST)';
+  }
+
+  function card(node, s) {
+    const idx = node.dataset.index;
+    node.replaceChildren(el('div', 'label', NAMES[idx]));
+    if (!s) { node.append(el('div', 'big muted', '—')); return; }
+    node.append(el('div', 'big', fmtIdx(s.price)));
+    const row = el('div', 'row');
+    row.append(el('span', tone(s.change), (s.change > 0 ? '▲ ' : s.change < 0 ? '▼ ' : '') + fmtIdx(Math.abs(s.change))),
+      el('span', tone(s.changePct), signed(s.changePct)), el('span', 'muted', '전일 대비'));
+    node.append(row);
+    const pr = el('div', 'row');
+    const p = el('span', 'pill'); p.append('기준일 대비 ', el('b', tone(s.sinceBasePct), signed(s.sinceBasePct)));
+    pr.append(p, el('span', 'muted', '기준 종가 ' + fmtIdx(s.baseClose)));
+    node.append(pr);
+    node.append(el('div', 'row note', `당일 고가 ${fmtIdx(s.dayHigh)} · 저가 ${fmtIdx(s.dayLow)}`));
+  }
+
+  function lineChart(node, series, opts) {
+    node.replaceChildren();
+    const W = Math.max(280, node.clientWidth);
+    const H = opts.height;
+    const all = series.flatMap((s) => s.points);
+    if (!all.length) return;
+    const refLabels = opts.refLabels || [];
+    const x = d3.scaleUtc(d3.extent(all, (p) => p.date), [0, 1]);
+    const yExt = d3.extent(all.map((p) => p.v).concat(opts.refs || [], refLabels.map((r) => r.v)));
+    const pad = (yExt[1] - yExt[0]) * 0.08 || 1;
+    const y = d3.scaleLinear([yExt[0] - pad, yExt[1] + pad], [H - 24, 8]).nice();
+    const svg = d3.select(node).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    const measure = (s) => { const t = svg.append('text').text(s); const w = t.node().getComputedTextLength(); t.remove(); return w; };
+    const ticks = y.ticks(opts.yTicks || 5);
+    const widest = d3.max(ticks, (t) => measure(opts.yFmt(t)));
+    const endW = opts.endLabels ? d3.max(series, (s) => measure(s.label + ' ' + opts.endFmt(s.points[s.points.length - 1].v))) + 10 : 8;
+    const refW = refLabels.length ? d3.max(refLabels, (r) => measure(r.label)) + 12 : 0;
+    const m = { l: widest + 10, r: Math.max(endW, refW) };
+    x.range([m.l, W - m.r]);
+    ticks.forEach((t) => {
+      svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(t)).attr('y2', y(t)).attr('stroke', 'var(--grid)');
+      svg.append('text').attr('x', m.l - 6).attr('y', y(t)).attr('dy', '0.32em').attr('text-anchor', 'end').text(opts.yFmt(t));
+    });
+    x.ticks(Math.max(2, Math.floor((W - m.l - m.r) / 80))).forEach((t) => svg.append('text').attr('x', x(t)).attr('y', H - 6).attr('text-anchor', 'middle').text(md(t)));
+    (opts.refs || []).forEach((r) => svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(r)).attr('y2', y(r)).attr('stroke', 'var(--ref)').attr('stroke-dasharray', '4 3'));
+    const placed = refLabels.map((r) => ({ r, y: y(r.v) })).sort((a, b) => a.y - b.y);
+    for (let i = 1; i < placed.length; i++) if (placed[i].y - placed[i - 1].y < 13) placed[i].y = placed[i - 1].y + 13;
+    placed.forEach(({ r, y: ly }) => {
+      svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(r.v)).attr('y2', y(r.v)).attr('stroke', r.color || 'var(--ref)').attr('stroke-width', r.color ? 1.5 : 1).attr('stroke-dasharray', '4 3');
+      svg.append('text').attr('x', W - m.r + 6).attr('y', ly).attr('dy', '0.32em').style('fill', r.color || 'var(--muted)').text(r.label);
+    });
+    if (opts.baseDate) {
+      const bx = x(parseDay(opts.baseDate));
+      svg.append('line').attr('x1', bx).attr('x2', bx).attr('y1', 8).attr('y2', H - 24).attr('stroke', 'var(--ref)').attr('stroke-dasharray', '2 3');
+      svg.append('text').attr('x', bx + 4).attr('y', 16).text('기준일 ' + md(parseDay(opts.baseDate)));
+    }
+    const line = d3.line().x((p) => x(p.date)).y((p) => y(p.v));
+    series.forEach((s) => {
+      svg.append('path').attr('d', line(s.points)).attr('fill', 'none').style('stroke', s.color).attr('stroke-width', 2).attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round');
+      const last = s.points[s.points.length - 1];
+      svg.append('circle').attr('cx', x(last.date)).attr('cy', y(last.v)).attr('r', 3.5).style('fill', s.color);
+    });
+    if (opts.endLabels) {
+      const labels = series.map((s) => ({ s, y: y(s.points[s.points.length - 1].v) })).sort((a, b) => a.y - b.y);
+      for (let i = 1; i < labels.length; i++) if (labels[i].y - labels[i - 1].y < 14) labels[i].y = labels[i - 1].y + 14;
+      labels.forEach(({ s, y: ly }) => svg.append('text').attr('x', W - m.r + 8).attr('y', ly).attr('dy', '0.32em').style('fill', s.color).text(s.label + ' ' + opts.endFmt(s.points[s.points.length - 1].v)));
+    }
+    const tip = el('div', 'tip'); tip.hidden = true; node.appendChild(tip);
+    const hover = svg.append('line').attr('y1', 8).attr('y2', H - 24).attr('stroke', 'var(--ref)').attr('opacity', 0);
+    const dots = series.map((s) => svg.append('circle').attr('r', 4).style('fill', s.color).attr('opacity', 0));
+    const dates = series[0].points.map((p) => p.date);
+    const bis = d3.bisector((d) => d).center;
+    svg.append('rect').attr('x', m.l).attr('y', 0).attr('width', W - m.l - m.r).attr('height', H).attr('fill', 'transparent')
+      .on('pointermove', (ev) => {
+        const [px] = d3.pointer(ev);
+        const d = dates[bis(dates, x.invert(px))];
+        hover.attr('x1', x(d)).attr('x2', x(d)).attr('opacity', 1);
+        tip.replaceChildren(el('div', 'd', ymd(d)));
+        series.forEach((s, k) => {
+          const p = s.points.find((q) => +q.date === +d);
+          if (!p) { dots[k].attr('opacity', 0); return; }
+          dots[k].attr('cx', x(p.date)).attr('cy', y(p.v)).attr('opacity', 1);
+          const ln = el('div');
+          if (series.length > 1) { const sw = el('span', 'sw'); sw.style.background = s.color; ln.appendChild(sw); }
+          ln.append(s.label + '  ' + opts.tipFmt(p.v));
+          tip.appendChild(ln);
+        });
+        tip.hidden = false;
+        const box = node.getBoundingClientRect();
+        tip.style.left = Math.min(Math.max(0, (x(d) / W) * box.width + 12), box.width - tip.offsetWidth) + 'px';
+        tip.style.top = '8px';
+      })
+      .on('pointerleave', () => { tip.hidden = true; hover.attr('opacity', 0); dots.forEach((c) => c.attr('opacity', 0)); });
+  }
+
+  function sparkline(td, pts, color) {
+    const W = 110, H = 26;
+    const x = d3.scaleLinear([0, pts.length - 1], [2, W - 4]);
+    const y = d3.scaleLinear(d3.extent(pts), [H - 3, 3]);
+    const svg = d3.select(td).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('preserveAspectRatio', 'none').style('max-width', W + 'px');
+    svg.append('line').attr('x1', 2).attr('x2', W - 4).attr('y1', y(pts[0])).attr('y2', y(pts[0])).attr('stroke', 'var(--ref)').attr('stroke-dasharray', '2 2');
+    svg.append('path').attr('d', d3.line().x((_, i) => x(i)).y((v) => y(v))(pts)).attr('fill', 'none').style('stroke', color).attr('stroke-width', 1.5).attr('stroke-linejoin', 'round');
+    svg.append('circle').attr('cx', x(pts.length - 1)).attr('cy', y(pts[pts.length - 1])).attr('r', 2.5).style('fill', color);
+  }
+
+  function cell(tr, text, cls) {
+    const td = el('td', cls, text);
+    tr.appendChild(td);
+    return td;
+  }
+
+  function failRow(tbody, cols) {
+    const tr = el('tr'); const td = cell(tr, ''); td.colSpan = cols; fail(td); tbody.replaceChildren(tr);
+  }
+
+  function render() {
+    if (!D) return;
+    header();
+    const sum = D.index_summary;
+    document.querySelectorAll('#index-cards [data-index]').forEach((n) => card(n, sum && sum.find((s) => s.index === n.dataset.index)));
+    const k200 = sum && sum.find((s) => s.index === 'KOSPI200');
+
+    // 배리어 차트·표
+    const bc = document.getElementById('barrier-chart');
+    const bt = document.querySelector('#barrier-table tbody');
+    if (D.rebased && D.barriers) {
+      const refLabels = d3.groups(D.barriers, (b) => b.pct).map(([pct, rows]) => {
+        const ki = rows[0].round === 'KI';
+        const name = ki ? '낙인' : rows.map((b) => (b.round === '6' ? '만기' : b.round + '차')).join('·');
+        return { v: pct, label: `${name} ${pct}`, color: ki ? 'var(--crit)' : null };
+      });
+      lineChart(bc, [{ label: '코스피200', color: COLORS.KOSPI200, points: D.rebased.filter((r) => r.index === 'KOSPI200').map((r) => ({ date: parseDay(r.date), v: r.v })) }],
+        { height: 320, refs: [100], refLabels, baseDate: k200.baseDate, yFmt: d3.format('.0f'), tipFmt: d3.format('.2f') });
+      bt.replaceChildren();
+      D.barriers.forEach((b) => {
+        const tr = el('tr');
+        cell(tr, b.label, 'l name'); cell(tr, b.evalDate, 'l muted'); cell(tr, b.pct + '%'); cell(tr, fmtIdx(b.level));
+        cell(tr, signed(b.gapPct), tone(b.gapPct));
+        const good = b.status === '현재 충족' || b.status === '미발생';
+        cell(tr, b.status, 'l ' + (b.round === 'KI' ? (good ? '' : 'up') : (good ? '' : 'muted')));
+        bt.appendChild(tr);
+      });
+    } else { fail(bc); failRow(bt, 6); }
+
+    // 기준일=100 비교
+    const rc = document.getElementById('rebased-chart');
+    const lg = document.getElementById('rebased-legend');
+    if (D.rebased) {
+      const series = ['KOSPI200', 'KOSPI', 'KOSDAQ'].map((k) => ({ label: NAMES[k], color: COLORS[k], points: D.rebased.filter((r) => r.index === k).map((r) => ({ date: parseDay(r.date), v: r.v })) }));
+      lg.replaceChildren(...series.map((s) => { const n = el('span', null, s.label); n.style.setProperty('--c', s.color); return n; }));
+      lineChart(rc, series, { height: 300, refs: [100], baseDate: k200.baseDate, yFmt: d3.format('.0f'), endLabels: true, endFmt: d3.format('.1f'), tipFmt: d3.format('.2f') });
+    } else fail(rc);
+
+    // 지수별 일봉
+    document.querySelectorAll('#index-levels .mini').forEach((n) => {
+      const k = n.dataset.index;
+      if (D.index_daily && sum) {
+        const s = sum.find((r) => r.index === k);
+        lineChart(n, [{ label: NAMES[k], color: COLORS[k], points: D.index_daily.filter((r) => r.index === k).map((r) => ({ date: parseDay(r.date), v: r.close })) }],
+          { height: 170, refs: [s.baseClose], baseDate: s.baseDate, yTicks: 4, yFmt: d3.format(',.0f'), tipFmt: fmtIdx });
+      } else fail(n);
+    });
+
+    // 상위 10종목
+    const tb = document.querySelector('#top10-table tbody');
+    if (D.top10) {
+      tb.replaceChildren();
+      D.top10.forEach((r) => {
+        const tr = el('tr');
+        cell(tr, String(r.rank), 'muted'); cell(tr, r.name, 'l name'); cell(tr, fmtWon(r.price));
+        cell(tr, signed(r.changePct), tone(r.changePct)); cell(tr, signed(r.sinceBasePct), tone(r.sinceBasePct));
+        cell(tr, fmt1(r.marketCapTrillion), 'hide-sm'); cell(tr, fmtWon(r.tradingValueBillion), 'hide-sm');
+        const sp = cell(tr, '', 'spark hide-sm');
+        if (D.top10_daily) {
+          const pts = D.top10_daily.filter((d) => d.code === r.code).map((d) => d.close);
+          if (pts.length > 1) sparkline(sp, pts, pts[pts.length - 1] >= pts[0] ? 'var(--up)' : 'var(--down)');
+        }
+        tb.appendChild(tr);
+      });
+    } else failRow(tb, 8);
+
+    // 대외 변수
+    const db = document.querySelector('#drivers-table tbody');
+    if (D.drivers) {
+      db.replaceChildren();
+      let grp = null;
+      D.drivers.forEach((r) => {
+        if (r.group !== grp) { grp = r.group; const g = el('tr', 'grp'); cell(g, grp).colSpan = 4; db.appendChild(g); }
+        const tr = el('tr');
+        cell(tr, r.name, 'l'); cell(tr, r.key === 'US10Y' ? r.price.toFixed(2) : fmtIdx(r.price));
+        cell(tr, signed(r.changePct), tone(r.changePct)); cell(tr, signed(r.sinceBasePct), tone(r.sinceBasePct));
+        db.appendChild(tr);
+      });
+    } else failRow(db, 4);
+
+    // 수급
+    const fb = document.querySelector('#flows-table tbody');
+    const br = document.getElementById('breadth');
+    if (D.flows) {
+      fb.replaceChildren(); br.replaceChildren();
+      const net = (v) => (v > 0 ? '+' : '') + fmtWon(v);
+      D.flows.forEach((r) => {
+        const tr = el('tr');
+        cell(tr, r.name, 'l name');
+        ['individual', 'foreign', 'institution', 'program'].forEach((f) => cell(tr, net(r[f]), tone(r[f])));
+        fb.appendChild(tr);
+        const wrap = el('div'); wrap.style.display = 'grid'; wrap.style.gap = '4px';
+        const lab = el('div', 'note');
+        lab.append(r.name + ' 종목 ', el('span', 'up', '상승 ' + fmtWon(r.rise)), ' · ', el('span', 'down', '하락 ' + fmtWon(r.fall)), ' · 보합 ' + fmtWon(r.steady));
+        const bar = el('div', 'breadth');
+        const tot = r.rise + r.fall + r.steady;
+        [[r.rise, 'var(--up)'], [r.steady, 'var(--ref)'], [r.fall, 'var(--down)']].forEach(([v, c]) => { const i = el('i'); i.style.width = (v / tot) * 100 + '%'; i.style.background = c; bar.appendChild(i); });
+        wrap.append(lab, bar);
+        br.appendChild(wrap);
+      });
+      const d = D.flows[0].bizdate;
+      br.appendChild(el('p', 'note', `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6)} 기준, 장중에는 잠정치`));
+    } else { failRow(fb, 5); br.replaceChildren(); }
+  }
+
+  let resizeTimer;
+  window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 150); });
+  load();
+  // 열어 둔 화면도 10분마다 최신 데이터로 다시 그림
+  setInterval(load, 10 * 60 * 1000);
+</script>
+</body>
+</html>
