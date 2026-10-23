@@ -13,7 +13,7 @@
   :root {
     --bg: #f5f6f8; --panel: #ffffff; --fg: #171a20; --muted: #5d6573; --line: #e1e4ea;
     --up: #cf222e; --down: #1a5fd0; --ref: #9aa3b1; --grid: #eceef2; --crit: #cf222e;
-    --s1: #0e7c72; --s2: #6d3fd6; --s3: #c2510e;
+    --s1: #0e7c72; --s2: #6d3fd6; --s3: #c2510e; --barrier: #8a5a00;
     --pop: #ffffff; --shadow: 0 6px 20px rgba(20, 24, 32, .12);
     --sans: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
     --serif: "Noto Serif KR", "AppleMyungjo", "Batang", Georgia, serif;
@@ -23,7 +23,7 @@
     :root:not([data-theme="light"]) {
       --bg: #12151a; --panel: #1a1e25; --fg: #e8eaee; --muted: #9aa2af; --line: #2b313b;
       --up: #ff6b6b; --down: #5b9bff; --ref: #6b7482; --grid: #232830; --crit: #ff6b6b;
-      --s1: #3cc4b4; --s2: #a88bff; --s3: #ff9a52;
+      --s1: #3cc4b4; --s2: #a88bff; --s3: #ff9a52; --barrier: #e8b54a;
       --pop: #22272f; --shadow: 0 6px 20px rgba(0, 0, 0, .45);
       color-scheme: dark;
     }
@@ -31,7 +31,7 @@
   :root[data-theme="dark"] {
     --bg: #12151a; --panel: #1a1e25; --fg: #e8eaee; --muted: #9aa2af; --line: #2b313b;
     --up: #ff6b6b; --down: #5b9bff; --ref: #6b7482; --grid: #232830; --crit: #ff6b6b;
-    --s1: #3cc4b4; --s2: #a88bff; --s3: #ff9a52;
+    --s1: #3cc4b4; --s2: #a88bff; --s3: #ff9a52; --barrier: #e8b54a;
     --pop: #22272f; --shadow: 0 6px 20px rgba(0, 0, 0, .45);
     color-scheme: dark;
   }
@@ -66,6 +66,19 @@
   .tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
   .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .8rem; }
   .legend span::before { content: ""; display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; background: var(--c); }
+  .legend span.dash::before { width: 18px; border-radius: 0; background: repeating-linear-gradient(90deg, var(--c) 0 6px, transparent 6px 9px); }
+  .bar-tools { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+  .seg-btns { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg-btns button { font: inherit; font-size: .8rem; color: var(--fg); background: var(--panel); border: 0; padding: 5px 12px; cursor: pointer; }
+  .seg-btns button + button { border-left: 1px solid var(--line); }
+  .seg-btns button:hover { background: var(--grid); }
+  .seg-btns button:focus-visible { outline: 2px solid var(--s1); outline-offset: -2px; }
+  #barrier-chart svg { touch-action: pan-y; user-select: none; }
+  #barrier-chart .pan { cursor: grab; }
+  #barrier-chart .pan:active { cursor: grabbing; }
+  #barrier-chart .nav-bg { fill: var(--bg); stroke: var(--line); }
+  #barrier-chart .selection { fill: var(--s1); fill-opacity: .14; stroke: var(--s1); stroke-opacity: .7; }
+  #barrier-chart .handle { fill: var(--s1); fill-opacity: .55; }
   .tablewrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
   th { text-align: right; font-weight: 500; font-size: .78rem; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
@@ -100,8 +113,20 @@
 
   <section class="card" id="barriers">
     <h2>ELS 배리어 대비 코스피200</h2>
-    <p class="note">기준일 종가=100. 조기상환 배리어 90-85-80-80-75-70%, 낙인 35%. 평가일은 기준일부터 6개월 주기로 가정한 예상일입니다.</p>
-    <div class="chart" id="barrier-chart" style="min-height: 320px"></div>
+    <p class="note">기준일 종가=100. 굵은 점선은 각 평가일까지 적용되는 조기상환 배리어(90-85-80-80-75-70%), 빨간 점선은 낙인(35%)입니다. 평가일은 기준일부터 6개월 주기로 가정한 예상일입니다.</p>
+    <div class="bar-tools">
+      <div class="legend">
+        <span style="--c: var(--s1)">코스피200</span>
+        <span class="dash" style="--c: var(--barrier)">조기상환 배리어</span>
+        <span class="dash" style="--c: var(--crit)">낙인</span>
+      </div>
+      <div class="seg-btns" role="group" aria-label="표시 기간">
+        <button type="button" id="win-now">현재 구간</button>
+        <button type="button" id="win-all">만기까지 전체</button>
+      </div>
+    </div>
+    <div class="chart" id="barrier-chart" style="min-height: 390px"></div>
+    <p class="note">아래 회색 막대의 선택 영역을 좌우로 끌거나 양 끝을 늘리면 보이는 기간이 바뀝니다. 위 차트를 직접 좌우로 끌어도 됩니다.</p>
     <div class="tablewrap">
       <table id="barrier-table">
         <thead><tr><th class="l">구분</th><th class="l">예상 평가일</th><th>배리어</th><th>배리어 지수</th><th>현재가 대비</th><th class="l">현재 상태</th></tr></thead>
@@ -333,6 +358,160 @@
       .on('pointerleave', () => { tip.hidden = true; hover.attr('opacity', 0); dots.forEach((c) => c.attr('opacity', 0)); });
   }
 
+  // ELS 배리어 차트: 기준일~만기 시간축, 평가 구간별 배리어 점선, 아래 탐색 막대로 기간 이동
+  let barrierWin = null; // 보이는 기간 [Date, Date], 다시 그려도 유지
+  let barrierPreset = null;
+
+  function barrierChart(node) {
+    const k = D.index_summary.find((s) => s.index === 'KOSPI200');
+    const base = parseDay(k.baseDate);
+    const evals = D.barriers.filter((b) => b.round !== 'KI').map((b) => ({ ...b, date: parseDay(b.evalDate) }));
+    const ki = D.barriers.find((b) => b.round === 'KI');
+    const segs = evals.map((b, i) => ({ ...b, start: i ? evals[i - 1].date : base, end: b.date, name: b.round === '6' ? '만기' : b.round + '차' }));
+    const maturity = evals[evals.length - 1].date;
+    const full = [d3.utcDay.offset(base, -10), d3.utcMonth.offset(maturity, 1)];
+    const pts = D.rebased.filter((r) => r.index === 'KOSPI200' && r.date >= k.baseDate).map((r) => ({ date: parseDay(r.date), v: r.v }));
+    const today = pts[pts.length - 1].date;
+    const presets = {
+      now: () => [full[0], d3.utcMonth.offset(evals[0].date, 2)],
+      all: () => full.slice(),
+    };
+    if (barrierPreset) { barrierWin = presets[barrierPreset](); barrierPreset = null; }
+    if (!barrierWin) barrierWin = presets.now();
+
+    node.replaceChildren();
+    const W = Math.max(300, node.clientWidth);
+    const H = 300, GAP = 14, NH = 58;
+    const yDom = [25, Math.max(110, d3.max(pts, (p) => p.v) + 5)];
+    const svg = d3.select(node).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H + GAP + NH}`);
+    const measure = (s) => { const t = svg.append('text').text(s); const w = t.node().getComputedTextLength(); t.remove(); return w; };
+    const y = d3.scaleLinear(yDom, [H - 24, 10]);
+    const yTicks = y.ticks(6);
+    const m = { l: d3.max(yTicks, (t) => measure(String(t))) + 10, r: 12 };
+    const x = d3.scaleUtc(barrierWin, [m.l, W - m.r]);
+    const xn = d3.scaleUtc(full, [m.l, W - m.r]);
+    const ny0 = H + GAP, ny1 = H + GAP + NH;
+    const yn = d3.scaleLinear(yDom, [ny1 - 3, ny0 + 3]);
+    const clipId = 'bclip';
+    svg.append('clipPath').attr('id', clipId).append('rect').attr('x', m.l).attr('y', 0).attr('width', W - m.l - m.r).attr('height', H - 24);
+
+    const gMain = svg.append('g');
+    let hoverLine, hoverDot;
+    const segLabel = (s) => `${s.name} ${s.pct}%`;
+
+    function drawMain() {
+      gMain.selectAll('*').remove();
+      x.domain(barrierWin);
+      yTicks.forEach((t) => {
+        gMain.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(t)).attr('y2', y(t)).attr('stroke', 'var(--grid)');
+        gMain.append('text').attr('x', m.l - 6).attr('y', y(t)).attr('dy', '0.32em').attr('text-anchor', 'end').text(t);
+      });
+      const spanDays = (barrierWin[1] - barrierWin[0]) / 864e5;
+      const tf = spanDays > 150 ? d3.utcFormat('%Y.%-m') : d3.utcFormat('%-m/%-d');
+      x.ticks(Math.max(2, Math.floor((W - m.l - m.r) / 90))).forEach((t) => gMain.append('text').attr('x', x(t)).attr('y', H - 6).attr('text-anchor', 'middle').text(tf(t)));
+      const c = gMain.append('g').attr('clip-path', `url(#${clipId})`);
+      c.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(100)).attr('y2', y(100)).attr('stroke', 'var(--ref)').attr('stroke-dasharray', '2 3');
+      // 평가일 세로 표시
+      evals.forEach((b) => c.append('line').attr('x1', x(b.date)).attr('x2', x(b.date)).attr('y1', 10).attr('y2', H - 24).attr('stroke', 'var(--grid)').attr('stroke-width', 1.5));
+      // 낙인
+      c.append('line').attr('x1', x(base)).attr('x2', x(maturity)).attr('y1', y(ki.pct)).attr('y2', y(ki.pct)).style('stroke', 'var(--crit)').attr('stroke-width', 2.5).attr('stroke-dasharray', '8 5');
+      // 조기상환 배리어: 평가 구간마다 굵은 점선, 평가일에 점
+      segs.forEach((s) => {
+        const cur = today > s.start && today <= s.end;
+        c.append('line').attr('x1', x(s.start)).attr('x2', x(s.end)).attr('y1', y(s.pct)).attr('y2', y(s.pct))
+          .style('stroke', 'var(--barrier)').attr('stroke-width', cur ? 3.5 : 2.5).attr('stroke-dasharray', '8 5').attr('opacity', cur ? 1 : 0.75);
+        c.append('circle').attr('cx', x(s.end)).attr('cy', y(s.pct)).attr('r', 4).style('fill', 'var(--barrier)');
+      });
+      // 오늘
+      c.append('line').attr('x1', x(today)).attr('x2', x(today)).attr('y1', 10).attr('y2', H - 24).attr('stroke', 'var(--ref)').attr('stroke-dasharray', '2 3');
+      // 코스피200
+      c.append('path').attr('d', d3.line().x((p) => x(p.date)).y((p) => y(p.v))(pts)).attr('fill', 'none').style('stroke', COLORS.KOSPI200).attr('stroke-width', 2).attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round');
+      c.append('circle').attr('cx', x(today)).attr('cy', y(pts[pts.length - 1].v)).attr('r', 3.5).style('fill', COLORS.KOSPI200);
+      // 라벨: 보이는 구간 가운데, 좁으면 생략
+      const L = m.l, R = W - m.r;
+      segs.forEach((s) => {
+        const a = Math.max(L, x(s.start)), b = Math.min(R, x(s.end));
+        if (b - a < 70) return;
+        c.append('text').attr('x', (a + b) / 2).attr('y', y(s.pct) - 7).attr('text-anchor', 'middle').style('fill', 'var(--barrier)').style('font-weight', 600).text(segLabel(s) + ' · ' + d3.utcFormat('%y.%-m.%-d')(s.end));
+      });
+      c.append('text').attr('x', L + 6).attr('y', y(ki.pct) - 7).style('fill', 'var(--crit)').style('font-weight', 600).text(`낙인 ${ki.pct}%`);
+      if (x(today) > L + 30 && x(today) < R - 30) {
+        gMain.append('text').attr('x', x(today)).attr('y', 9).attr('text-anchor', 'middle').text('오늘 ' + pts[pts.length - 1].v.toFixed(1));
+      }
+      hoverLine = gMain.append('line').attr('y1', 10).attr('y2', H - 24).attr('stroke', 'var(--ref)').attr('opacity', 0);
+      hoverDot = gMain.append('circle').attr('r', 4).style('fill', COLORS.KOSPI200).attr('opacity', 0);
+    }
+
+    // 탐색 막대: 만기까지 전체 기간
+    svg.append('rect').attr('class', 'nav-bg').attr('x', m.l).attr('y', ny0).attr('width', W - m.l - m.r).attr('height', NH).attr('rx', 4);
+    segs.forEach((s) => svg.append('line').attr('x1', xn(s.start)).attr('x2', xn(s.end)).attr('y1', yn(s.pct)).attr('y2', yn(s.pct)).style('stroke', 'var(--barrier)').attr('stroke-width', 1.5).attr('stroke-dasharray', '4 3'));
+    svg.append('line').attr('x1', xn(base)).attr('x2', xn(maturity)).attr('y1', yn(ki.pct)).attr('y2', yn(ki.pct)).style('stroke', 'var(--crit)').attr('stroke-width', 1.5).attr('stroke-dasharray', '4 3');
+    svg.append('path').attr('d', d3.line().x((p) => xn(p.date)).y((p) => yn(p.v))(pts)).attr('fill', 'none').style('stroke', COLORS.KOSPI200).attr('stroke-width', 1.5);
+    xn.ticks(d3.utcYear.every(1)).forEach((t) => {
+      svg.append('line').attr('x1', xn(t)).attr('x2', xn(t)).attr('y1', ny0).attr('y2', ny1).attr('stroke', 'var(--line)');
+      svg.append('text').attr('x', xn(t) + 4).attr('y', ny0 + 12).text(d3.utcFormat('%Y')(t));
+    });
+
+    const minW = 30;
+    const brush = d3.brushX().extent([[m.l, ny0], [W - m.r, ny1]])
+      .on('brush end', (ev) => {
+        if (!ev.sourceEvent) return;
+        const small = ev.selection && ev.selection[1] - ev.selection[0] < minW;
+        if (!ev.selection || (small && ev.type === 'end')) { gBrush.call(brush.move, barrierWin.map(xn)); return; }
+        if (small) return;
+        barrierWin = ev.selection.map(xn.invert);
+        drawMain();
+      });
+    const gBrush = svg.append('g').call(brush);
+    gBrush.call(brush.move, barrierWin.map(xn));
+
+    // 위 차트를 끌어서 기간 이동, 마우스를 올리면 그날 값과 적용 배리어 표시
+    const tip = el('div', 'tip'); tip.hidden = true; node.appendChild(tip);
+    let drag = null;
+    const pan = svg.append('rect').attr('class', 'pan').attr('x', m.l).attr('y', 0).attr('width', W - m.l - m.r).attr('height', H - 24).attr('fill', 'transparent');
+    const bis = d3.bisector((p) => p.date).center;
+    pan.on('pointerdown', (ev) => { drag = { x: ev.clientX, win: barrierWin.slice(), scale: (W - m.l - m.r) / node.getBoundingClientRect().width }; pan.node().setPointerCapture(ev.pointerId); tip.hidden = true; })
+      .on('pointerup pointercancel', () => { drag = null; })
+      .on('pointermove', (ev) => {
+        if (drag) {
+          const span = drag.win[1] - drag.win[0];
+          let dt = -((ev.clientX - drag.x) * drag.scale) / (W - m.l - m.r) * span;
+          dt = Math.max(full[0] - drag.win[0], Math.min(full[1] - drag.win[1], dt));
+          barrierWin = [new Date(+drag.win[0] + dt), new Date(+drag.win[1] + dt)];
+          drawMain();
+          gBrush.call(brush.move, barrierWin.map(xn));
+          return;
+        }
+        const [px] = d3.pointer(ev);
+        const d = x.invert(px);
+        tip.replaceChildren(el('div', 'd', ymd(d)));
+        if (d <= d3.utcDay.offset(today, 1) && d >= d3.utcDay.offset(base, -1)) {
+          const p = pts[bis(pts, d)];
+          hoverLine.attr('x1', x(p.date)).attr('x2', x(p.date)).attr('opacity', 1);
+          hoverDot.attr('cx', x(p.date)).attr('cy', y(p.v)).attr('opacity', 1);
+          tip.firstChild.textContent = ymd(p.date);
+          tip.append(el('div', null, '코스피200  ' + p.v.toFixed(2) + ' (기준가 대비 %)'));
+        } else {
+          hoverLine.attr('x1', px).attr('x2', px).attr('opacity', 1);
+          hoverDot.attr('opacity', 0);
+        }
+        const s = segs.find((q) => d > q.start && d <= q.end);
+        if (s) tip.append(el('div', null, `적용 배리어  ${segLabel(s)} (평가일 ${s.evalDate})`));
+        tip.append(el('div', null, `낙인 배리어  ${ki.pct}%`));
+        tip.hidden = false;
+        const box = node.getBoundingClientRect();
+        const sx = box.width / W;
+        tip.style.left = Math.min(Math.max(0, px * sx + 12), box.width - tip.offsetWidth) + 'px';
+        tip.style.top = '8px';
+      })
+      .on('pointerleave', () => { if (!drag) { tip.hidden = true; hoverLine.attr('opacity', 0); hoverDot.attr('opacity', 0); } });
+
+    drawMain();
+  }
+
+  document.getElementById('win-now').addEventListener('click', () => { barrierPreset = 'now'; if (D) barrierChart(document.getElementById('barrier-chart')); });
+  document.getElementById('win-all').addEventListener('click', () => { barrierPreset = 'all'; if (D) barrierChart(document.getElementById('barrier-chart')); });
+
   function sparkline(td, pts, color) {
     const W = 110, H = 26;
     const x = d3.scaleLinear([0, pts.length - 1], [2, W - 4]);
@@ -364,13 +543,7 @@
     const bc = document.getElementById('barrier-chart');
     const bt = document.querySelector('#barrier-table tbody');
     if (D.rebased && D.barriers) {
-      const refLabels = d3.groups(D.barriers, (b) => b.pct).map(([pct, rows]) => {
-        const ki = rows[0].round === 'KI';
-        const name = ki ? '낙인' : rows.map((b) => (b.round === '6' ? '만기' : b.round + '차')).join('·');
-        return { v: pct, label: `${name} ${pct}`, color: ki ? 'var(--crit)' : null };
-      });
-      lineChart(bc, [{ label: '코스피200', color: COLORS.KOSPI200, points: D.rebased.filter((r) => r.index === 'KOSPI200').map((r) => ({ date: parseDay(r.date), v: r.v })) }],
-        { height: 320, refs: [100], refLabels, baseDate: k200.baseDate, yFmt: d3.format('.0f'), tipFmt: d3.format('.2f') });
+      barrierChart(bc);
       bt.replaceChildren();
       D.barriers.forEach((b) => {
         const tr = el('tr');
