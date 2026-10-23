@@ -204,6 +204,8 @@
     ],
   };
   const SETS = ['index_summary', 'index_daily', 'top10', 'top10_daily', 'drivers', 'flows'];
+  // PC에 저장된 파일로 열었을 때는 브라우저가 옆 파일을 읽지 못하므로 공개 사이트의 데이터를 씀
+  const DATA_BASE = /^https?:$/.test(location.protocol) ? 'data/' : 'https://dongasci001-ctrl.github.io/kospi200-els/data/';
   const COLORS = { KOSPI200: 'var(--s1)', KOSPI: 'var(--s2)', KOSDAQ: 'var(--s3)' };
   const NAMES = { KOSPI200: '코스피200', KOSPI: '코스피', KOSDAQ: '코스닥' };
 
@@ -221,7 +223,7 @@
 
   async function load() {
     const t = Date.now();
-    const res = await Promise.all(SETS.map((k) => fetch(`data/${k}.json?t=${t}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)));
+    const res = await Promise.all(SETS.map((k) => fetch(`${DATA_BASE}${k}.json?t=${t}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)));
     const d = Object.fromEntries(SETS.map((k, i) => [k, res[i]]));
     // 파생 값: 기준일=100 환산, 배리어 레벨
     if (d.index_daily && d.index_summary) {
